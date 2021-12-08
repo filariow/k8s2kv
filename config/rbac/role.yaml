@@ -40,3 +40,29 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - akv.fil.it
+  resources:
+  - keyvaultsecretsyncs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - akv.fil.it
+  resources:
+  - keyvaultsecretsyncs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - akv.fil.it
+  resources:
+  - keyvaultsecretsyncs/status
+  verbs:
+  - get
+  - patch
+  - update

@@ -13,4 +13,13 @@ resources:
   kind: KeyVaultCertificateSync
   path: github.com/filariow/k8s2kv/api/v1
   version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: fil.it
+  group: akv
+  kind: KeyVaultSecretSync
+  path: github.com/filariow/k8s2kv/api/v1
+  version: v1
 version: "3"
