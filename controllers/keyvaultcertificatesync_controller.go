@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -33,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	akvv1 "github.com/filariow/k8s2kv/api/v1"
+	"github.com/filariow/k8s2kv/pkg/kv"
 )
 
 const (
@@ -62,9 +64,6 @@ type KeyVaultCertificateSyncReconciler struct {
 func (r *KeyVaultCertificateSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	// TODO(user): your logic here
-	l.Info("Hello", "request", req)
-
 	// get key vault certificate sync resource
 	l.Info("retrieving KeyVaultCertificateSync", "request", req.String())
 	kvs := &akvv1.KeyVaultCertificateSync{}
@@ -81,10 +80,28 @@ func (r *KeyVaultCertificateSyncReconciler) Reconcile(ctx context.Context, req c
 		return ctrl.Result{}, nil
 	}
 
+	sp := kvs.Spec
+	value := string(s.Data[sp.Data])
 	// get secret form kv
+	sv, err := kv.GetSecret(ctx, sp.KeyVaultName, sp.KeyVaultSecretName)
+	if err != nil && !errors.Is(err, kv.ErrNotFound) {
+		l.Info("error retrieving key vault secret", "key vault", sp.KeyVaultName, "secret data", sp.Data)
+		return ctrl.Result{}, nil
+	}
 
 	// if k8s's secret is different, update the version in kv
+	if sv != nil && *sv == value {
+		l.Info("secret was up to date", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.Secret, "request", req.String())
+		return ctrl.Result{}, nil
+	}
 
+	l.Info("updating secret", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.Secret, "request", req.String())
+	if err := kv.UpdateSecret(ctx, sp.KeyVaultName, sp.KeyVaultSecretName, value); err != nil {
+		l.Info("error updating key vault secret", "key vault", sp.KeyVaultName, "secret data", sp.Data, "error", err)
+		return ctrl.Result{}, nil
+	}
+
+	l.Info("secret updated", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.Secret, "request", req.String())
 	return ctrl.Result{}, nil
 }
 

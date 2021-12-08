@@ -4,5 +4,6 @@ metadata:
   name: hello
 spec:
   secret: "k8s-secret"
-  keyVaultName: "key-vault-name"
-  keyVaultTenant: "key-vault-tenant"
+  data: "hello"
+  keyVaultName: "k8s2kv-test"
+  keyVaultSecretName: "aks-k8s-secret-hello"

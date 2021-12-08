@@ -38,20 +38,20 @@ spec:
             description: KeyVaultCertificateSyncSpec defines the desired state of
               KeyVaultCertificateSync
             properties:
-              keyVaultCertificateName:
+              data:
                 type: string
               keyVaultName:
                 type: string
-              keyVaultTenant:
+              keyVaultSecretName:
                 type: string
               secret:
                 description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
                   Important: Run "make" to regenerate code after modifying this file'
                 type: string
             required:
-            - keyVaultCertificateName
+            - data
             - keyVaultName
-            - keyVaultTenant
+            - keyVaultSecretName
             - secret
             type: object
           status:
