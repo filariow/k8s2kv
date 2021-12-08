@@ -65,15 +65,27 @@ func (r *KeyVaultCertificateSyncReconciler) Reconcile(ctx context.Context, req c
 	// TODO(user): your logic here
 	l.Info("Hello", "request", req)
 
+	// get key vault certificate sync resource
+	l.Info("retrieving KeyVaultCertificateSync", "request", req.String())
+	kvs := &akvv1.KeyVaultCertificateSync{}
+	if err := r.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: req.Name}, kvs); err != nil {
+		l.Info("error retrieving KeyVaultCertificateSync", "request", req.String())
+		return ctrl.Result{}, nil
+	}
+
 	// get secret from k8s
+	l.Info("retrieving secret", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.Secret, "request", req.String())
+	s := &corev1.Secret{}
+	if err := r.Get(ctx, types.NamespacedName{Namespace: kvs.Namespace, Name: kvs.Spec.Secret}, s); err != nil {
+		l.Info("error retrieving secret", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.Secret, "request", req.String())
+		return ctrl.Result{}, nil
+	}
+
 	// get secret form kv
+
 	// if k8s's secret is different, update the version in kv
 
 	return ctrl.Result{}, nil
-}
-
-func getKeyVaultCertificateSync(ctx context.Context, namespace, resource string) (*akvv1.KeyVaultCertificateSync, error) {
-	return nil, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
