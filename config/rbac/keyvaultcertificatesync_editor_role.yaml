@@ -1,0 +1,24 @@
+# permissions for end users to edit keyvaultcertificatesyncs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: keyvaultcertificatesync-editor-role
+rules:
+- apiGroups:
+  - akv.fil.it
+  resources:
+  - keyvaultcertificatesyncs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - akv.fil.it
+  resources:
+  - keyvaultcertificatesyncs/status
+  verbs:
+  - get

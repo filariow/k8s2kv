@@ -1,0 +1,16 @@
+domain: fil.it
+layout:
+- go.kubebuilder.io/v3
+projectName: k8s2kv
+repo: github.com/filariow/k8s2kv
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: fil.it
+  group: akv
+  kind: KeyVaultCertificateSync
+  path: github.com/filariow/k8s2kv/api/v1
+  version: v1
+version: "3"

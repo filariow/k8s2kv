@@ -1,0 +1,6 @@
+apiVersion: akv.fil.it/v1
+kind: KeyVaultCertificateSync
+metadata:
+  name: keyvaultcertificatesync-sample
+spec:
+  # TODO(user): Add fields here

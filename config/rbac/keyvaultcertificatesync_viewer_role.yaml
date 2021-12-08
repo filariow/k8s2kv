@@ -1,0 +1,20 @@
+# permissions for end users to view keyvaultcertificatesyncs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: keyvaultcertificatesync-viewer-role
+rules:
+- apiGroups:
+  - akv.fil.it
+  resources:
+  - keyvaultcertificatesyncs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - akv.fil.it
+  resources:
+  - keyvaultcertificatesyncs/status
+  verbs:
+  - get
