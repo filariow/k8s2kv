@@ -1,0 +1,8 @@
+apiVersion: akv.fil.it/v1
+kind: KeyVaultCertificateSync
+metadata:
+  name: hello
+spec:
+  secret: "k8s-secret"
+  keyVaultName: "key-vault-name"
+  keyVaultTenant: "key-vault-tenant"

@@ -38,10 +38,21 @@ spec:
             description: KeyVaultCertificateSyncSpec defines the desired state of
               KeyVaultCertificateSync
             properties:
-              foo:
-                description: Foo is an example field of KeyVaultCertificateSync. Edit
-                  keyvaultcertificatesync_types.go to remove/update
+              keyVaultCertificateName:
                 type: string
+              keyVaultName:
+                type: string
+              keyVaultTenant:
+                type: string
+              secret:
+                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                  Important: Run "make" to regenerate code after modifying this file'
+                type: string
+            required:
+            - keyVaultCertificateName
+            - keyVaultName
+            - keyVaultTenant
+            - secret
             type: object
           status:
             description: KeyVaultCertificateSyncStatus defines the observed state

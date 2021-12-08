@@ -19,12 +19,24 @@ package controllers
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	akvv1 "github.com/filariow/k8s2kv/api/v1"
+)
+
+const (
+	secretField = ".spec.secret"
 )
 
 // KeyVaultCertificateSyncReconciler reconciles a KeyVaultCertificateSync object
@@ -36,6 +48,7 @@ type KeyVaultCertificateSyncReconciler struct {
 //+kubebuilder:rbac:groups=akv.fil.it,resources=keyvaultcertificatesyncs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=akv.fil.it,resources=keyvaultcertificatesyncs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=akv.fil.it,resources=keyvaultcertificatesyncs/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -47,9 +60,10 @@ type KeyVaultCertificateSyncReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *KeyVaultCertificateSyncReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	l := log.FromContext(ctx)
 
 	// TODO(user): your logic here
+	l.Info("Hello", "request", req)
 
 	// get secret from k8s
 	// get secret form kv
@@ -58,9 +72,51 @@ func (r *KeyVaultCertificateSyncReconciler) Reconcile(ctx context.Context, req c
 	return ctrl.Result{}, nil
 }
 
+func getKeyVaultCertificateSync(ctx context.Context, namespace, resource string) (*akvv1.KeyVaultCertificateSync, error) {
+	return nil, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *KeyVaultCertificateSyncReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &akvv1.KeyVaultCertificateSync{}, secretField, func(rawObj client.Object) []string {
+		kvcs := rawObj.(*akvv1.KeyVaultCertificateSync)
+		if kvcs.Spec.Secret == "" {
+			return nil
+		}
+		return []string{kvcs.Spec.Secret}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&akvv1.KeyVaultCertificateSync{}).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.findSecret),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
+}
+
+func (r *KeyVaultCertificateSyncReconciler) findSecret(secret client.Object) []reconcile.Request {
+	attachedSecrets := &akvv1.KeyVaultCertificateSyncList{}
+	listOps := &client.ListOptions{
+		FieldSelector: fields.OneTermEqualSelector(secretField, secret.GetName()),
+		Namespace:     secret.GetNamespace(),
+	}
+	err := r.List(context.TODO(), attachedSecrets, listOps)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+
+	rr := make([]reconcile.Request, len(attachedSecrets.Items))
+	for i, item := range attachedSecrets.Items {
+		rr[i] = reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      item.GetName(),
+				Namespace: item.GetNamespace(),
+			},
+		}
+	}
+	return rr
 }

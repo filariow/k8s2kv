@@ -27,9 +27,10 @@ import (
 type KeyVaultCertificateSyncSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	CertificateName string `json:"secret"`
-	KeyVaultName    string `json:"keyVaultName"`
-	KeyVaultTenant  string `json:"keyVaultTenant"`
+	Secret                  string `json:"secret"`
+	KeyVaultCertificateName string `json:"keyVaultCertificateName"`
+	KeyVaultName            string `json:"keyVaultName"`
+	KeyVaultTenant          string `json:"keyVaultTenant"`
 }
 
 // KeyVaultCertificateSyncStatus defines the observed state of KeyVaultCertificateSync
