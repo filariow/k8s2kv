@@ -1,0 +1,8 @@
+apiVersion: akv.fil.it/v1
+kind: KeyVaultCertificateSync
+metadata:
+  name: hello
+spec:
+  secretName: "k8s-certificate"
+  keyVaultName: "k8s2kv-test"
+  keyVaultCertificateName: "aks-k8s-cert-hello"

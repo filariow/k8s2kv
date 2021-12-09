@@ -17,7 +17,11 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"errors"
 
 	corev1 "k8s.io/api/core/v1"
@@ -73,35 +77,64 @@ func (r *KeyVaultCertificateSyncReconciler) Reconcile(ctx context.Context, req c
 	}
 
 	// get secret from k8s
-	l.Info("retrieving secret", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.Secret, "request", req.String())
+	l.Info("retrieving secret", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.SecretName, "request", req.String())
 	s := &corev1.Secret{}
-	if err := r.Get(ctx, types.NamespacedName{Namespace: kvs.Namespace, Name: kvs.Spec.Secret}, s); err != nil {
-		l.Info("error retrieving secret", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.Secret, "request", req.String())
+	if err := r.Get(ctx, types.NamespacedName{Namespace: kvs.Namespace, Name: kvs.Spec.SecretName}, s); err != nil {
+		l.Info("error retrieving secret", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.SecretName, "request", req.String())
 		return ctrl.Result{}, nil
 	}
 
 	sp := kvs.Spec
-	value := string(s.Data[sp.Data])
+	crt, tkey := s.Data["tls.crt"], s.Data["tls.key"]
+	ec := []byte("-----END CERTIFICATE-----\n")
+
+	kp, _ := pem.Decode(tkey)
+	if kp == nil {
+		l.Info("error parsing Private Key")
+		return ctrl.Result{}, nil
+	}
+
+	kd, err := x509.ParsePKCS1PrivateKey(kp.Bytes)
+	if err != nil {
+		l.Info("error decrypting private key", "error", err)
+		return ctrl.Result{}, nil
+	}
+
+	b, err := x509.MarshalPKCS8PrivateKey(kd)
+	if err != nil {
+		l.Info("error converting key to PKCS8 Private Key", "error", err, "key", string(tkey))
+		return ctrl.Result{}, nil
+	}
+
+	key := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: b,
+	})
+
+	crt = bytes.Split(crt, ec)[0]
+	value := append(append(crt, ec...), key...)
+
 	// get secret form kv
-	sv, err := kv.GetSecret(ctx, sp.KeyVaultName, sp.KeyVaultSecretName)
+	sv, err := kv.GetCertificate(ctx, sp.KeyVaultName, sp.KeyVaultCertificateName)
 	if err != nil && !errors.Is(err, kv.ErrNotFound) {
-		l.Info("error retrieving key vault secret", "key vault", sp.KeyVaultName, "secret data", sp.Data)
+		l.Info("error retrieving key vault certificate", "key vault", sp.KeyVaultName)
 		return ctrl.Result{}, nil
 	}
 
 	// if k8s's secret is different, update the version in kv
-	if sv != nil && *sv == value {
-		l.Info("secret was up to date", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.Secret, "request", req.String())
+	if sv != nil && bytes.Equal(*sv, value) {
+		l.Info("certificate was up to date", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.SecretName, "request", req.String())
 		return ctrl.Result{}, nil
 	}
 
-	l.Info("updating secret", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.Secret, "request", req.String())
-	if err := kv.UpdateSecret(ctx, sp.KeyVaultName, sp.KeyVaultSecretName, value); err != nil {
-		l.Info("error updating key vault secret", "key vault", sp.KeyVaultName, "secret data", sp.Data, "error", err)
+	l.Info("updating certificate", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.SecretName, "request", req.String())
+	b64cert := base64.StdEncoding.EncodeToString(value)
+	if err := kv.ImportCertificate(ctx, sp.KeyVaultName, sp.KeyVaultCertificateName, b64cert); err != nil {
+		l.Info("error updating key vault certificate", "key vault", sp.KeyVaultName, "error", err, "pem", string(value))
 		return ctrl.Result{}, nil
 	}
 
-	l.Info("secret updated", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.Secret, "request", req.String())
+	l.Info("certificate updated", "secret namespace", kvs.Namespace, "secret name", kvs.Spec.SecretName, "request", req.String())
 	return ctrl.Result{}, nil
 }
 
@@ -109,10 +142,10 @@ func (r *KeyVaultCertificateSyncReconciler) Reconcile(ctx context.Context, req c
 func (r *KeyVaultCertificateSyncReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &akvv1.KeyVaultCertificateSync{}, secretField, func(rawObj client.Object) []string {
 		kvcs := rawObj.(*akvv1.KeyVaultCertificateSync)
-		if kvcs.Spec.Secret == "" {
+		if kvcs.Spec.SecretName == "" {
 			return nil
 		}
-		return []string{kvcs.Spec.Secret}
+		return []string{kvcs.Spec.SecretName}
 	}); err != nil {
 		return err
 	}
